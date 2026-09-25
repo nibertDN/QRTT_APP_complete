@@ -178,31 +178,14 @@ export async function registerAttendance(rawPayload: string, studentId: string):
     return { success: false, message: 'Event has already ended.' };
   }
 
-  const title = payload.title ?? payload.event;
   const foundEvent = await getEventByCode(payload.event);
-  let event: { id: string; title: string } | null = foundEvent;
-
-  if (!event) {
-    const { data: newEvent, error: insertError } = await supabase
-      .from('events')
-      .insert({
-        event_code: payload.event,
-        title,
-        start_time: payload.start ?? null,
-        end_time: payload.end ?? null,
-      })
-      .select('id, title')
-      .single();
-
-    if (insertError || !newEvent) {
-      return { success: false, message: 'Could not create event.' };
-    }
-    event = newEvent;
+  if (!foundEvent) {
+    return { success: false, message: 'Event not found. Ask the teacher to create it first.' };
   }
 
   const { error: attendanceError } = await supabase.from('attendance').insert({
     student_id: studentId,
-    event_id: event.id,
+    event_id: foundEvent.id,
   });
 
   if (attendanceError) {
@@ -210,16 +193,16 @@ export async function registerAttendance(rawPayload: string, studentId: string):
       return {
         success: false,
         message: 'Already registered for this event.',
-        eventTitle: event.title,
+        eventTitle: foundEvent.title,
       };
     }
-    return { success: false, message: attendanceError.message, eventTitle: event.title };
+    return { success: false, message: attendanceError.message, eventTitle: foundEvent.title };
   }
 
   return {
     success: true,
     message: 'Attendance recorded!',
-    eventTitle: event.title,
+    eventTitle: foundEvent.title,
   };
 }
 

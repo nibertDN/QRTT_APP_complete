@@ -1,13 +1,25 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-
-import { COLORS } from '@/constants/colors';
+import { useTheme, usePresetColors } from '@/context/ThemeContext';
+import { withAlpha } from '@/constants/colors';
 
 export default function AppTabs() {
+  const colors = usePresetColors();
+  const { scheme } = useTheme();
+  const isDark = scheme === 'dark';
+
   return (
     <NativeTabs
-      backgroundColor={COLORS.card}
-      indicatorColor={COLORS.surface}
-      labelStyle={{ selected: { color: COLORS.primary } }}>
+      backgroundColor={colors.surface}
+      iconColor={{ default: colors.textTertiary, selected: colors.primary }}
+      labelStyle={{
+        default: { color: colors.textTertiary, fontSize: 11, fontWeight: '600' },
+        selected: { color: colors.primary, fontSize: 11, fontWeight: '700' },
+      }}
+      indicatorColor={withAlpha(colors.primary, isDark ? 0.24 : 0.16)}
+      rippleColor={withAlpha(colors.primary, isDark ? 0.22 : 0.14)}
+      shadowColor={colors.border}
+      disableTransparentOnScrollEdge
+    >
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
@@ -47,7 +59,6 @@ export default function AppTabs() {
           md={{ default: 'person', selected: 'person' }}
         />
       </NativeTabs.Trigger>
-
     </NativeTabs>
   );
 }

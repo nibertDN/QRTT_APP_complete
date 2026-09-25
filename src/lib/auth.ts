@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import * as Linking from 'expo-linking';
 import type { Session, User } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
+import { useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
 
@@ -49,14 +49,33 @@ export async function signUp(email: string, password: string, profile?: SignUpPr
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: Linking.createURL('login') },
+    options: {
+      emailRedirectTo: Linking.createURL('login'),
+      ...(profile
+        ? {
+            data: {
+              full_name: profile.full_name,
+              role: profile.role,
+            },
+          }
+        : {}),
+    },
   });
-  if (!error && data.session && profile) {
+
+  if (!error && data.user && profile) {
     await supabase
       .from('profiles')
-      .update({ full_name: profile.full_name, role: profile.role })
-      .eq('id', data.session.user.id);
+      .upsert(
+        {
+          id: data.user.id,
+          email: data.user.email ?? email.trim(),
+          full_name: profile.full_name,
+          role: profile.role,
+        },
+        { onConflict: 'id' },
+      );
   }
+
   if (!error && data.session) setAuth(data.session);
   return { data, error };
 }

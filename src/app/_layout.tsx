@@ -1,19 +1,65 @@
-import { Redirect, Stack, useSegments } from 'expo-router';
+import { Redirect, Stack, useSegments, ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme } from 'expo-router';
 import type { RelativePathString } from 'expo-router';
 import * as Linking from 'expo-linking';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { COLORS } from '@/constants/colors';
-import { completeAuthFromUrl } from '@/lib/auth';
-import { useAuth } from '@/lib/auth';
+import { completeAuthFromUrl, useAuth } from '@/lib/auth';
+import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
-  const { session, loading } = useAuth();
+function LoadingScreen() {
+  const colors = useTheme().colors;
+  return (
+    <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+      <ActivityIndicator size="large" color={colors.primary} />
+    </View>
+  );
+}
+
+function RootNavigator() {
+  const { session } = useAuth();
   const segments = useSegments();
+  const { colors, scheme } = useTheme();
+
+  const navTheme = useMemo(() => {
+    const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      dark: scheme === 'dark',
+      colors: {
+        ...base.colors,
+        primary: colors.primary,
+        background: colors.background,
+        card: colors.surface,
+        text: colors.textPrimary,
+        border: colors.border,
+        notification: colors.danger,
+      },
+    };
+  }, [scheme, colors]);
+
+  const path = segments[0];
+  const inAuthGroup = path === 'login' || path === 'register';
+  const inTabsGroup = path === '(tabs)';
+
+  return (
+    <NavigationThemeProvider value={navTheme}>
+      <Stack initialRouteName="login" screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+        {!session && inTabsGroup && <Redirect href={'/login' as RelativePathString} />}
+        {session && inAuthGroup && <Redirect href={'/(tabs)' as RelativePathString} />}
+        <Stack.Screen name="login" />
+        <Stack.Screen name="register" />
+        <Stack.Screen name="(tabs)" />
+      </Stack>
+    </NavigationThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  const { loading } = useAuth();
 
   useEffect(() => {
     void SplashScreen.hideAsync();
@@ -31,25 +77,13 @@ export default function RootLayout() {
   }, []);
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
+    return <ThemeProvider><LoadingScreen /></ThemeProvider>;
   }
 
-  const path = segments[0];
-  const inAuthGroup = path === 'login' || path === 'register';
-  const inTabsGroup = path === '(tabs)';
-
   return (
-    <Stack initialRouteName="login" screenOptions={{ headerShown: false }}>
-      {!session && inTabsGroup && <Redirect href={'/login' as RelativePathString} />}
-      {session && inAuthGroup && <Redirect href={'/(tabs)' as RelativePathString} />}
-      <Stack.Screen name="login" />
-      <Stack.Screen name="register" />
-      <Stack.Screen name="(tabs)" />
-    </Stack>
+    <ThemeProvider>
+      <RootNavigator />
+    </ThemeProvider>
   );
 }
 
@@ -58,6 +92,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.background,
   },
 });

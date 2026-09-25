@@ -3,8 +3,7 @@ import { View, StyleSheet } from 'react-native';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
-
-import { Spacing } from '@/constants/theme';
+import { SPACING, RADIUS } from '@/constants/colors';
 
 type HintRowProps = {
   title?: string;
@@ -14,9 +13,9 @@ type HintRowProps = {
 export function HintRow({ title = 'Try editing', hint = 'app/index.tsx' }: HintRowProps) {
   return (
     <View style={styles.stepRow}>
-      <ThemedText type="small">{title}</ThemedText>
-      <ThemedView type="backgroundSelected" style={styles.codeSnippet}>
-        <ThemedText themeColor="textSecondary">{hint}</ThemedText>
+      <ThemedText variant="caption" weight="medium" color="secondary">{title}</ThemedText>
+      <ThemedView variant="surfaceHover" style={styles.codeSnippet}>
+        <ThemedText variant="code" color="tertiary">{hint}</ThemedText>
       </ThemedView>
     </View>
   );
@@ -28,8 +27,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   codeSnippet: {
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.half,
-    paddingHorizontal: Spacing.two,
+    borderRadius: RADIUS.sm,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
   },
 });

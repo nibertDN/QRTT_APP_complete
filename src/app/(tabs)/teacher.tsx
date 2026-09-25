@@ -3,18 +3,21 @@ import QRCode from 'react-native-qrcode-svg';
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
-import { COLORS } from '@/constants/colors';
+import { ThemedText } from '@/components/themed-text';
+import { Panel, Screen, ScreenHeader, ScreenScroll } from '@/components/ui/screen-shell';
+import { usePresetColors } from '@/context/ThemeContext';
 import { useAuth } from '@/lib/auth';
 import { createEvent, type Event } from '@/lib/events';
 import { getProfile } from '@/lib/profiles';
 import type { Role } from '@/lib/profiles';
 import { buildQRPayload } from '@/lib/qr';
+import { FONT_SIZES, RADIUS, SPACING } from '@/constants/colors';
+import AppButton from '@/components/AppButton';
 
-function toLocalISO(date: Date) {
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+function toUTCISO(date: Date) {
+  return date.toISOString();
 }
 
 function formatDateTime(date: Date) {
@@ -23,6 +26,7 @@ function formatDateTime(date: Date) {
 
 export default function TeacherScreen() {
   const { user } = useAuth();
+  const colors = usePresetColors();
   const [role, setRole] = useState<Role | null>(null);
   const [roleLoading, setRoleLoading] = useState(true);
   const [title, setTitle] = useState('');
@@ -39,9 +43,7 @@ export default function TeacherScreen() {
       let active = true;
       if (!user) {
         setRoleLoading(false);
-        return () => {
-          active = false;
-        };
+        return () => { active = false; };
       }
 
       setRoleLoading(true);
@@ -51,9 +53,7 @@ export default function TeacherScreen() {
         setRoleLoading(false);
       });
 
-      return () => {
-        active = false;
-      };
+      return () => { active = false; };
     }, [user]),
   );
 
@@ -88,8 +88,8 @@ export default function TeacherScreen() {
     const event: Event = {
       eventId: eventId.trim(),
       title: title.trim(),
-      start: toLocalISO(startDate),
-      end: toLocalISO(endDate),
+      start: toUTCISO(startDate),
+      end: toUTCISO(endDate),
     };
 
     if (!event.eventId || !event.title) {
@@ -121,87 +121,317 @@ export default function TeacherScreen() {
 
   if (roleLoading) {
     return (
-      <View style={styles.lockScreen}>
-        <Text style={styles.lockTitle}>Checking your account...</Text>
-      </View>
+      <Screen style={styles.centerScreen}>
+        <View style={styles.loaderBlock}>
+          <SymbolView
+            name={{ ios: 'hourglass', android: 'hourglass_top', web: 'hourglass_top' }}
+            tintColor={colors.primary}
+            size={32}
+          />
+          <ThemedText variant="heading" weight="bold" color="secondary">
+            Checking your account...
+          </ThemedText>
+        </View>
+      </Screen>
     );
   }
 
   if (role !== 'teacher') {
     return (
-      <View style={styles.lockScreen}>
-        <SymbolView name={{ ios: 'lock.fill', android: 'lock', web: 'lock' }} tintColor={COLORS.primary} size={42} />
-        <Text style={styles.lockTitle}>Teachers Only</Text>
-        <Text style={styles.lockSubtitle}>Only teacher accounts can create events.</Text>
-      </View>
+      <Screen style={styles.centerScreen}>
+        <Panel style={styles.lockPanel}>
+          <View style={[styles.lockIcon, { backgroundColor: colors.primaryLight }]}>
+            <SymbolView
+              name={{ ios: 'lock.fill', android: 'lock', web: 'lock' }}
+              tintColor={colors.primary}
+              size={26}
+            />
+          </View>
+          <ThemedText variant="subtitle" weight="extrabold" color="primary" style={styles.centerText}>
+            Teachers Only
+          </ThemedText>
+          <ThemedText variant="body" color="secondary" style={styles.centerText}>
+            Only teacher accounts can create events and issue attendance QR codes.
+          </ThemedText>
+        </Panel>
+      </Screen>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.eyebrow}>TEACHER EVENT</Text>
-      <Text style={styles.title}>Create attendance QR</Text>
-      <Text style={styles.subtitle}>Set the event details, save it, and display the QR for students.</Text>
-      <View style={styles.form}>
-        <Field label="Event title" value={title} onChangeText={setTitle} placeholder="Calculus lecture" />
-        <Field label="Event code" value={eventId} onChangeText={setEventId} placeholder="CALC-2026-001" />
-        <PickerField label="Starts" value={formatDateTime(startDate)} onPress={() => openPicker('start')} />
-        <PickerField label="Ends" value={formatDateTime(endDate)} onPress={() => openPicker('end')} />
-        <View style={styles.chipRow}>
-          {[30, 60, 120].map((minutes) => (
-            <Pressable key={minutes} onPress={() => setEndOffset(minutes)} style={styles.chip}>
-              <Text style={styles.chipText}>+{minutes === 60 ? '1 hour' : `${minutes} min`}</Text>
-            </Pressable>
-          ))}
+    <ScreenScroll contentContainerStyle={styles.scrollContent}>
+      <ScreenHeader
+        code="TEACHER / EVENTS"
+        title="Create attendance QR"
+        subtitle="Set the event details, save it, then display the QR for students."
+      />
+
+      <Panel bar style={styles.block}>
+        <View style={styles.form}>
+          <Field label="Event title" value={title} onChangeText={setTitle} placeholder="Calculus lecture" />
+          <Field label="Event code" value={eventId} onChangeText={setEventId} placeholder="CALC-2026-001" />
+          <PickerField label="Starts" value={formatDateTime(startDate)} onPress={() => openPicker('start')} />
+          <PickerField label="Ends" value={formatDateTime(endDate)} onPress={() => openPicker('end')} />
+          <View style={styles.chipRow}>
+            {[30, 60, 120].map((minutes) => (
+              <Pressable
+                key={minutes}
+                onPress={() => setEndOffset(minutes)}
+                style={({ pressed }) => [
+                  styles.chip,
+                  { borderColor: colors.border, backgroundColor: colors.surfaceSunken },
+                  pressed && { opacity: 0.7, borderColor: colors.borderStrong },
+                ]}
+              >
+                <ThemedText variant="caption" weight="bold" color="primary">
+                  +{minutes === 60 ? '1 hour' : `${minutes} min`}
+                </ThemedText>
+              </Pressable>
+            ))}
+            <View style={styles.chipSpacer} />
+            <ThemedText variant="caption" color="tertiary">
+              sets the end time
+            </ThemedText>
+          </View>
         </View>
-      </View>
-      {editTarget && <DateTimePicker value={editTarget === 'start' ? startDate : endDate} mode={Platform.OS === 'android' ? editingPart : 'datetime'} display={Platform.OS === 'android' ? 'default' : 'spinner'} onChange={onPickerChange} />}
-      <Pressable onPress={handleCreateEvent} style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
-        <Text style={styles.buttonText}>Create event</Text>
-      </Pressable>
-      {message && <Text style={styles.message}>{message}</Text>}
-      {payload && (
-        <View style={styles.resultCard}>
-          <Text style={styles.resultTitle}>Scan this QR with the Scan tab</Text>
-          <View style={styles.qrBox}><QRCode value={payload} size={200} /></View>
-          <Text style={styles.payloadText}>{payload}</Text>
+      </Panel>
+
+      {editTarget && (
+        <DateTimePicker
+          value={editTarget === 'start' ? startDate : endDate}
+          mode={Platform.OS === 'android' ? editingPart : 'datetime'}
+          display={Platform.OS === 'android' ? 'default' : 'spinner'}
+          onChange={onPickerChange}
+        />
+      )}
+
+      <AppButton
+        variant="primary"
+        size="lg"
+        fullWidth
+        icon="create"
+        title="Create event"
+        onPress={handleCreateEvent}
+      />
+
+      {message && (
+        <View
+          style={[
+            styles.messageBanner,
+            {
+              backgroundColor: message.includes('saved') ? colors.successLight : colors.dangerLight,
+              borderColor: message.includes('saved') ? colors.success : colors.danger,
+            },
+          ]}
+        >
+          <SymbolView
+            name={
+              message.includes('saved')
+                ? { ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' }
+                : { ios: 'exclamationmark.triangle.fill', android: 'warning', web: 'warning' }
+            }
+            tintColor={message.includes('saved') ? colors.success : colors.danger}
+            size={18}
+          />
+          <ThemedText
+            variant="body"
+            weight="medium"
+            color={message.includes('saved') ? 'success' : 'danger'}
+            style={styles.bannerText}
+          >
+            {message}
+          </ThemedText>
         </View>
       )}
-    </ScrollView>
+
+      {payload && (
+        <Panel style={styles.resultPanel}>
+          <View style={styles.resultHead}>
+            <ThemedText variant="overline" weight="extrabold" color="secondary">
+              OUTPUT / QR PAYLOAD
+            </ThemedText>
+            <ThemedText variant="heading" weight="bold" color="primary" style={styles.centerText}>
+              Scan this QR with the Scan tab
+            </ThemedText>
+          </View>
+
+          <View style={[styles.qrBox, { borderColor: colors.border }]}>
+            <QRCode value={payload} size={230} />
+          </View>
+
+          <View style={[styles.hintRow, { backgroundColor: colors.surfaceSunken }]}>
+            <SymbolView
+              name={{ ios: 'eye.fill', android: 'visibility', web: 'visibility' }}
+              tintColor={colors.textTertiary}
+              size={14}
+            />
+            <ThemedText variant="caption" color="tertiary">
+              Keep the white panel unobstructed so scanners can read the code.
+            </ThemedText>
+          </View>
+
+          <ThemedText variant="code" color="tertiary" style={styles.payloadText} numberOfLines={4}>
+            {payload}
+          </ThemedText>
+        </Panel>
+      )}
+    </ScreenScroll>
   );
 }
 
 function Field({ label, value, onChangeText, placeholder }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string }) {
-  return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={COLORS.textSecondary} style={styles.input} /></View>;
+  const colors = usePresetColors();
+  return (
+    <View style={styles.field}>
+      <ThemedText variant="overline" weight="extrabold" color="secondary">{label}</ThemedText>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textTertiary}
+        style={[
+          styles.input,
+          { backgroundColor: colors.surfaceSunken, borderColor: colors.border, color: colors.textPrimary },
+        ]}
+      />
+    </View>
+  );
 }
 
 function PickerField({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
-  return <View style={styles.field}><Text style={styles.label}>{label}</Text><Pressable onPress={onPress} style={styles.pickerField}><Text style={styles.pickerText}>{value}</Text></Pressable></View>;
+  const colors = usePresetColors();
+  return (
+    <View style={styles.field}>
+      <ThemedText variant="overline" weight="extrabold" color="secondary">{label}</ThemedText>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.pickerField,
+          {
+            backgroundColor: colors.surfaceSunken,
+            borderColor: pressed ? colors.borderStrong : colors.border,
+          },
+        ]}
+      >
+        <ThemedText variant="body" color="primary" style={styles.pickerValue}>{value}</ThemedText>
+        <SymbolView
+          name={{ ios: 'calendar', android: 'event', web: 'event' }}
+          tintColor={colors.textTertiary}
+          size={16}
+        />
+      </Pressable>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: COLORS.background, padding: 24 },
-  lockScreen: { flex: 1, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  lockTitle: { color: COLORS.textPrimary, fontSize: 24, fontWeight: '800', marginTop: 14 },
-  lockSubtitle: { color: COLORS.textSecondary, fontSize: 15, textAlign: 'center', marginTop: 8 },
-  eyebrow: { color: COLORS.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginTop: 12 },
-  title: { color: COLORS.textPrimary, fontSize: 30, fontWeight: '800', marginTop: 6 },
-  subtitle: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 20, marginTop: 8, marginBottom: 24 },
-  form: { gap: 14 },
-  field: { gap: 7 },
-  label: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '700' },
-  input: { height: 50, borderRadius: 10, borderWidth: 1, borderColor: '#303741', color: COLORS.textPrimary, backgroundColor: COLORS.card, paddingHorizontal: 14, fontSize: 15 },
-  pickerField: { height: 50, borderRadius: 10, borderWidth: 1, borderColor: '#303741', backgroundColor: COLORS.card, paddingHorizontal: 14, justifyContent: 'center' },
-  pickerText: { color: COLORS.textPrimary, fontSize: 15 },
-  chipRow: { flexDirection: 'row', gap: 8 },
-  chip: { borderRadius: 16, backgroundColor: '#2B313A', paddingHorizontal: 12, paddingVertical: 8 },
-  chipText: { color: COLORS.textPrimary, fontSize: 12, fontWeight: '700' },
-  button: { height: 52, borderRadius: 12, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', marginTop: 22 },
-  buttonText: { color: '#15171A', fontSize: 15, fontWeight: '800' },
-  pressed: { opacity: 0.72 },
-  message: { color: COLORS.textPrimary, textAlign: 'center', marginTop: 16, fontSize: 14 },
-  resultCard: { alignItems: 'center', backgroundColor: COLORS.card, borderRadius: 16, padding: 22, marginTop: 24, gap: 14 },
-  resultTitle: { color: COLORS.textPrimary, fontWeight: '700', textAlign: 'center' },
-  qrBox: { backgroundColor: '#FFFFFF', padding: 12, borderRadius: 8 },
-  payloadText: { color: COLORS.textSecondary, fontSize: 10, textAlign: 'center' },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  centerScreen: {
+    justifyContent: 'center',
+  },
+  loaderBlock: {
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  lockPanel: {
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  lockIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerText: {
+    textAlign: 'center',
+  },
+  block: {
+    marginBottom: SPACING.md,
+  },
+  form: {
+    gap: SPACING.lg,
+  },
+  field: {
+    gap: SPACING.xs,
+  },
+  input: {
+    height: 48,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.md,
+    fontSize: FONT_SIZES.md,
+  },
+  pickerField: {
+    minHeight: 48,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  pickerValue: {
+    flex: 1,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  chip: {
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderWidth: 1,
+  },
+  chipSpacer: {
+    flex: 1,
+    minWidth: 8,
+  },
+  messageBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginTop: SPACING.md,
+    borderWidth: 1,
+  },
+  bannerText: {
+    flex: 1,
+  },
+  resultPanel: {
+    alignItems: 'center',
+    marginTop: SPACING.lg,
+  },
+  resultHead: {
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  qrBox: {
+    backgroundColor: '#FFFFFF',
+    padding: SPACING.md,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+  },
+  hintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    alignSelf: 'stretch',
+  },
+  payloadText: {
+    textAlign: 'center',
+    maxWidth: '100%',
+  },
 });

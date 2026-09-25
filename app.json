@@ -17,7 +17,11 @@
         "backgroundColor": "#101318",
         "foregroundImage": "./assets/images/icon_without_backround.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -44,6 +48,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "457a65cb-f90b-48ba-9fc1-f3845aec7591"
+      }
     }
   }
 }

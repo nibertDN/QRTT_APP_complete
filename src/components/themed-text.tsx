@@ -1,73 +1,61 @@
-import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
-
-import { Fonts, ThemeColor } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Text, type TextProps } from 'react-native';
+import { usePresetColors } from '@/context/ThemeContext';
+import { FONT_SIZES, FONT_WEIGHTS } from '@/constants/colors';
 
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
-  themeColor?: ThemeColor;
+  variant?: 'default' | 'title' | 'subtitle' | 'heading' | 'body' | 'caption' | 'overline' | 'code' | 'link' | 'linkPrimary' | 'button';
+  weight?: keyof typeof FONT_WEIGHTS;
+  color?: 'primary' | 'secondary' | 'tertiary' | 'inverse' | 'onPrimary' | 'success' | 'warning' | 'danger' | 'info' | 'inherit';
 };
 
-export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
-  const theme = useTheme();
+export function ThemedText({ 
+  style, 
+  variant = 'default', 
+  weight, 
+  color = 'primary', 
+  children,
+  ...rest 
+}: ThemedTextProps) {
+  const colors = usePresetColors();
+
+  const colorMap: Record<string, string> = {
+    primary: colors.textPrimary,
+    secondary: colors.textSecondary,
+    tertiary: colors.textTertiary,
+    inverse: colors.textInverse,
+    onPrimary: colors.textOnPrimary,
+    success: colors.success,
+    warning: colors.warning,
+    danger: colors.danger,
+    info: colors.info,
+    inherit: 'currentColor',
+  };
+
+  const variantStyles = {
+    default: { fontSize: FONT_SIZES.md, lineHeight: 22, fontWeight: FONT_WEIGHTS.normal },
+    title: { fontSize: FONT_SIZES['4xl'], lineHeight: 40, fontWeight: FONT_WEIGHTS.extrabold },
+    subtitle: { fontSize: FONT_SIZES['2xl'], lineHeight: 32, fontWeight: FONT_WEIGHTS.bold },
+    heading: { fontSize: FONT_SIZES.xl, lineHeight: 28, fontWeight: FONT_WEIGHTS.semibold },
+    body: { fontSize: FONT_SIZES.md, lineHeight: 24, fontWeight: FONT_WEIGHTS.normal },
+    caption: { fontSize: FONT_SIZES.sm, lineHeight: 18, fontWeight: FONT_WEIGHTS.normal },
+    overline: { fontSize: FONT_SIZES.xs, lineHeight: 16, fontWeight: FONT_WEIGHTS.semibold, letterSpacing: 1.2, textTransform: 'uppercase' as const },
+    code: { fontSize: FONT_SIZES.sm, lineHeight: 20, fontFamily: 'monospace', fontWeight: FONT_WEIGHTS.medium },
+    link: { fontSize: FONT_SIZES.md, lineHeight: 24, fontWeight: FONT_WEIGHTS.medium, textDecorationLine: 'underline' as const },
+    linkPrimary: { fontSize: FONT_SIZES.md, lineHeight: 24, fontWeight: FONT_WEIGHTS.semibold },
+    button: { fontSize: FONT_SIZES.md, lineHeight: 24, fontWeight: FONT_WEIGHTS.semibold },
+  }[variant];
 
   return (
     <Text
       style={[
-        { color: theme[themeColor ?? 'text'] },
-        type === 'default' && styles.default,
-        type === 'title' && styles.title,
-        type === 'small' && styles.small,
-        type === 'smallBold' && styles.smallBold,
-        type === 'subtitle' && styles.subtitle,
-        type === 'link' && styles.link,
-        type === 'linkPrimary' && styles.linkPrimary,
-        type === 'code' && styles.code,
+        variantStyles,
+        { color: colorMap[color] },
+        weight && { fontWeight: FONT_WEIGHTS[weight] },
         style,
       ]}
       {...rest}
-    />
+    >
+      {children}
+    </Text>
   );
 }
-
-const styles = StyleSheet.create({
-  small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
-  },
-  smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 700,
-  },
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
-  },
-  title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
-  },
-  subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
-  },
-  link: {
-    lineHeight: 30,
-    fontSize: 14,
-  },
-  linkPrimary: {
-    lineHeight: 30,
-    fontSize: 14,
-    color: '#3c87f7',
-  },
-  code: {
-    fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
-    fontSize: 12,
-  },
-});
